@@ -30,6 +30,7 @@ const {
   query,
   where,
   updateDoc,
+  deleteDoc,
 } = require("firebase/firestore");
 const {
   default: NodeWallet,
@@ -286,29 +287,60 @@ module.exports = {
     }
   },
 
+  
   getUserWalletFirebase: async (userId) => {
     const createUserWalletFirebase = async (userId) => {
       try {
-        // Generate keypair and airdrop some SOL to user account
-        const keypair = new Keypair();
-        const publicKey = keypair.publicKey;
-        const privateKey = keypair.secretKey;
+        const keypairsRef = collection(db, "keypairs");
+        const keypairsQuery = query(keypairsRef);
 
-        const customConnection = new Connection(CUSTOM_DEVNET_RPC);
-        const airdrop = await customConnection.requestAirdrop(
-          publicKey,
-          2 * LAMPORTS_PER_SOL
-        );
-        console.log(`Airdrop transaction for ${userId} `, airdrop);
+        // Get the first document in the keypairs collection
+        const keypairsSnapshot = await getDocs(keypairsQuery);
+        // Fallback is to request on the spot
+        if (keypairsSnapshot.empty) {
+          // Should run the airdrop query again here
+          console.log('The keypairs collection is empty.');
+          // Connect to Solana RPC endpoint
+          const customConnection = new Connection(rpcUrl);
 
-        // Save public & private key in user's record
-        const userRef = doc(db, "users", userId.toString());
-        await updateDoc(userRef, {
-          publicKey: publicKey.toString(),
-          privateKey: Array.from(privateKey),
-        }); 
+          // Generate a new key pair for the Solana network
+          const keypair = Keypair.generate();
+          const publicKey = keypair.publicKey;
+          const privateKey = keypair.secretKey;
+          console.log("Key pair created!")
+          const airdrop = await customConnection.requestAirdrop(
+            publicKey,
+            2 * LAMPORTS_PER_SOL
+          );
+          console.log(`Airdrop transaction for ${publicKey}`, airdrop);
+          // Save public & private key in user's record
+          const userRef = doc(db, "users", userId.toString());
+          await updateDoc(userRef, {
+            publicKey: publicKey.toString(),
+            privateKey: Array.from(privateKey),
+          }); 
 
-        return { publicKey, privateKey };
+          return { publicKey, privateKey };
+        } else{
+          // Assign the keys to the user
+          const keypairRef = keypairsSnapshot.docs[0];
+          const keypair = keypairRef.data();
+
+          const publicKey = keypair.publicKey;
+          const privateKey = keypair.secretKey;
+
+          const userRef = doc(db, "users", userId.toString());
+          await updateDoc(userRef, {
+            publicKey: publicKey,
+            privateKey: privateKey,
+          }); 
+
+          // Delete the document once the keys are assigned
+          await deleteDoc(keypairRef.ref);
+          console.log("Wallet consumed")
+
+          return { publicKey, privateKey };
+        }
       } catch (err) {
         console.log("createUserWalletFirebase error ", err);
       }
