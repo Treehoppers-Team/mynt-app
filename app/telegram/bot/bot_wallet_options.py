@@ -39,6 +39,10 @@ async def get_user_id_from_query(update):
     user_id = query.from_user.id
     return user_id
 
+
+async def send_paynow(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    pass
+
 async def view_wallet_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     loading_message = "Retrieving wallet balance..."
     message = await context.bot.send_message(chat_id=update.effective_chat.id, text=loading_message)
