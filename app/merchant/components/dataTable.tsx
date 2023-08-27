@@ -1,10 +1,15 @@
 import React, { useState } from "react";
+import axios from "axios";
+
+const BASE = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 interface TableRow {
+  id: string;
   name: string;
   handle: string;
   number: number;
   status: "SUCCESSFUL" | "REDEEMED" | "UNSUCCESSFUL" | "PENDING";
+  verification: "VERIFIED" | "UNVERIFIED" | "REJECTED";
   mint_account: string;
   registration_time: string;
   redemption_time: string;
@@ -17,6 +22,9 @@ interface TableProps {
 const Table: React.FC<TableProps> = ({ data }) => {
   const [sortColumn, setSortColumn] = useState<string>("name");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [selectedRows, setSelectedRows] = useState<string[]>([]);
+  const [selectAll, setSelectAll] = useState(false);
+  const [showOptions, setShowOptions] = useState(false);
 
   const sortedData = data.sort((a, b) => {
     const aValue = a[sortColumn as keyof TableRow];
@@ -39,11 +47,71 @@ const Table: React.FC<TableProps> = ({ data }) => {
     }
   };
 
+  const handleRowSelect = (registrationId: string) => {
+    if (selectedRows.includes(registrationId)) {
+      setSelectedRows(selectedRows.filter((userId) => userId !== registrationId));
+    } else {
+      setSelectedRows([...selectedRows, registrationId]);
+    }
+  };
+
+  const handleSelectAll = () => {
+    if (selectAll) {
+      setSelectedRows([]);
+    } else {
+      const allRowIds = data.map((row: { id: any; }) => row.id);
+      setSelectedRows(allRowIds);
+    }
+    setSelectAll(!selectAll);
+  };
+
+  const handleOptionsClick = () => {
+    setShowOptions(!showOptions);
+  };
+
+  const handleVerify = () => {
+    console.log("This is the handle verify button")
+    console.log(selectedRows)
+    let counter = 0;
+
+      for (let i = 0; i < selectedRows.length; i++) {
+        console.log(selectedRows[i])
+        const registrationData = {
+          user_id: selectedRows[i],
+          event_title: "Test Event Verification",
+          verification: "VERIFIED",
+        };
+        axios
+          .post(BASE + "/updateRegistration", registrationData)
+          .then((response: { data: any }) => {
+            console.log(response.data);
+            counter += 1;
+          })
+          .then(() => {
+            if (counter === selectedRows.length) {
+              console.log("verification updated");
+              window.location.reload();
+            }
+          });
+      }
+  };
+  
+  const handleReject = () => {
+    // Implement rejection logic here
+  };
+
   return (
     <div className="overflow-x-auto rounded-lg m-4">
       <table className="w-full table-auto border-collapse">
         <thead className="text-black bg-gray-100">
           <tr>
+            <th className="px-4 py-2">
+              <input
+                type="checkbox"
+                checked={selectAll}
+                onChange={handleSelectAll}
+              />
+            </th>
             <th className="px-4 py-2">#</th>
             <th className="px-4 py-2" onClick={() => handleSort("name")}>
               Name{" "}
@@ -51,6 +119,10 @@ const Table: React.FC<TableProps> = ({ data }) => {
             </th>
             <th className="px-4 py-2" onClick={() => handleSort("status")}>
               Status{" "}
+              {sortColumn === "status" && (sortDirection === "asc" ? "▲" : "▼")}
+            </th>
+            <th className="px-4 py-2" onClick={() => handleSort("verification")}>
+              Verification{" "}
               {sortColumn === "status" && (sortDirection === "asc" ? "▲" : "▼")}
             </th>
             <th className="px-4 py-2" onClick={() => handleSort("handle")}>
@@ -84,11 +156,35 @@ const Table: React.FC<TableProps> = ({ data }) => {
               {sortColumn === "redemption_time" &&
                 (sortDirection === "asc" ? "▲" : "▼")}
             </th>
+            <th className="px-4 py-2">
+            <div className="flex justify-end">
+              <button
+                onClick={handleOptionsClick}
+                className="p-2 focus:outline-none hover:bg-gray-300 rounded-md"
+              >
+                ⋮
+              </button>
+            </div>
+            {showOptions && (
+              <div className="absolute bg-white p-2 shadow-md">
+                <button onClick={() => handleVerify()}>Verify</button>
+                <button onClick={() => handleReject()}>Reject</button>
+              </div>
+            )}
+          </th>
           </tr>
         </thead>
         <tbody className="text-gray-700">
           {sortedData.map((row, index) => (
             <tr key={index}>
+              <td className="border px-4 py-2">
+              {row.id}
+                <input
+                  type="checkbox"
+                  checked={selectedRows.includes(row.id)}
+                  onChange={() => handleRowSelect(row.id)}
+                />
+              </td>
               <td className="border px-4 py-2">{index + 1}</td>
               <td className="border px-4 py-2">{row.name}</td>
               <td className="border px-4 py-2">
@@ -106,6 +202,21 @@ const Table: React.FC<TableProps> = ({ data }) => {
                   } text-white py-1 px-2 rounded-full`}
                 >
                   {row.status}
+                </span>
+              </td>
+              <td className="border px-4 py-2">
+                <span
+                  className={`${
+                    row.verification === "VERIFIED"
+                      ? "bg-blue-500"
+                      : row.verification === "REJECTED"
+                      ? "bg-red-500"
+                      : row.verification === "UNVERIFIED"
+                      ? "bg-yellow-500"
+                      : ""
+                  } text-white py-1 px-2 rounded-full`}
+                >
+                  {row.verification}
                 </span>
               </td>
               <td className="border px-4 py-2">
