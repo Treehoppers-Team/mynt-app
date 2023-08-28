@@ -139,12 +139,13 @@ app.get("/getEventRegistrations/:event_title", (req, res) => {
 });
 
 app.post("/updateRegistration", (req, res) => {
-  const { user_id, event_title, status, mint_account, redemption_time } =
+  const { user_id, event_title, status, verification, mint_account, redemption_time } =
     req.body;
   const registrationInfo = {
     user_id,
     event_title,
     status,
+    verification,
     mint_account,
     redemption_time,
   };

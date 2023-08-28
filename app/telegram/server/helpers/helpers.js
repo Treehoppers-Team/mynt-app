@@ -249,8 +249,14 @@ module.exports = {
       userId: registrationInfo.user_id.toString(),
       eventTitle: registrationInfo.event_title,
       status: registrationInfo.status,
+      verification: registrationInfo.verification,
       mint_account: registrationInfo.mint_account,
     };
+
+    // Include verification only if it exists
+    if (registrationInfo.verification) {
+      docData.verification = registrationInfo.verification;
+    }
 
     // Include redemption_time only if it exists
     if (registrationInfo.redemption_time) {
@@ -263,11 +269,14 @@ module.exports = {
 
     const docId = docData.userId + docData.eventTitle;
     const docRef = doc(db, "registrations", docId.toString());
-
-    // Include redemption_time only if it exists
-    const updateData = {
-      status: docData.status,
-    };
+    // Add fields on existence
+    const updateData = {};
+    if(docData.status) {
+      updateData.status = docData.status
+    }
+    if(docData.verification) {
+      updateData.verification = docData.verification
+    }
     if (docData.redemption_time) {
       updateData.redemption_time = docData.redemption_time;
     }
