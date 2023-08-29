@@ -180,7 +180,7 @@ app.get("/getAllRegistrations", (req, res) => {
 
 app.post("/insertRegistration", (req, res) => {
   const { user_id, event_title, status, registration_time } = req.body;
-  const registrationInfo = { user_id, event_title, status, registration_time };
+  const registrationInfo = { user_id, event_title, status, registration_time, verification: 'UNVERIFIED' };
   try {
     insertRegistrationFirebase(registrationInfo).then(() => {
       res

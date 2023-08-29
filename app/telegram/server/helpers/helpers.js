@@ -238,6 +238,7 @@ module.exports = {
       eventTitle: registrationInfo.event_title,
       status: registrationInfo.status,
       registration_time: registrationInfo.registration_time,
+      verification: registrationInfo.verification
     };
     // Doc ID needs to be a string
     const docId = docData.userId + docData.eventTitle;
@@ -251,25 +252,13 @@ module.exports = {
       status: registrationInfo.status,
       verification: registrationInfo.verification,
       mint_account: registrationInfo.mint_account,
+      redemption_time: registrationInfo.redemption_time
     };
-
-    // Include verification only if it exists
-    if (registrationInfo.verification) {
-      docData.verification = registrationInfo.verification;
-    }
-
-    // Include redemption_time only if it exists
-    if (registrationInfo.redemption_time) {
-      docData.redemption_time = registrationInfo.redemption_time;
-    }
-
-    if (registrationInfo.mint_account) {
-      docData.mint_account = registrationInfo.mint_account;
-    }
 
     const docId = docData.userId + docData.eventTitle;
     const docRef = doc(db, "registrations", docId.toString());
-    // Add fields on existence
+
+    // Fields that are applicable to be updated are
     const updateData = {};
     if(docData.status) {
       updateData.status = docData.status
@@ -284,7 +273,11 @@ module.exports = {
       updateData.mint_account = docData.mint_account;
     }
 
+  if (Object.keys(updateData).length > 0) {
     await updateDoc(docRef, updateData);
+  } else {
+    console.log("updateRegistrationFirebase: No fields to update.");
+  }
   },
 
   getNftInfoFirebase: async (eventTitle) => {
