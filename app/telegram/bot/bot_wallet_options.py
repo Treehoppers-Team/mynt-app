@@ -29,8 +29,8 @@ logger = logging.getLogger(__name__)
 """"
 =============================================================================================
 get_user_id_from_query: Reusable function for retrieving user id after a user has clicked a button
-view_wallet_balance: Display balance of user's wallet
-view_transaction_history: Display transaction history of user
+view_wallet_balance: Display balance of user's wallet (Deprecated)
+view_transaction_history: Display transaction history of user 
 =============================================================================================
 """
 async def get_user_id_from_query(update):
@@ -40,10 +40,44 @@ async def get_user_id_from_query(update):
     return user_id
 
 
-async def send_paynow(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    pass
+async def view_payment_total(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    loading_message = "Retrieving Payment Total..."
+    message = await context.bot.send_message(chat_id=update.effective_chat.id, text=loading_message)
 
-async def view_wallet_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = await get_user_id_from_query(update)
+
+    # needs to be updated (les clunky)
+    # logger.info(f"Retrieving wallet balance for User: {user_id}")
+    # response = requests.get(endpoint_url + f"/viewWalletBalance/{user_id}")
+    # response_data = response.json()
+
+    response_data_registraton = requests.get(endpoint_url + f"/getRegistrations/{user_id}")
+    response_registration= response_data_registraton.json()
+    response_data_transaction = requests.get(endpoint_url + f"/viewTransactionHistory/{user_id}") #I may want to move this out into the main page so that people can call it
+    response_transaction = response_data_transaction.json()
+
+    user_balance = 0
+
+    for event in response_registration: #work on optimizing this
+        event_title = event['eventTitle']
+        status = event['status']
+
+        if status == "SUCCESSFUL" or status == "REDEEMED":
+            print(f"{event_title} was successful")
+            for transaction in response_transaction:
+                event = transaction['eventTitle'] if 'eventTitle' in transaction else "-"
+                if event_title == event:
+                    amount = transaction['amount']
+                    print(f"{event_title} was {amount}")
+                    user_balance += amount
+              
+
+    text=f'The total you have paid is ${user_balance}'
+    await message.delete()
+    await update_default_wallet_message(update, context, text)
+    return ROUTE
+
+async def view_wallet_balance(update: Update, context: ContextTypes.DEFAULT_TYPE): # Deprecated
     loading_message = "Retrieving wallet balance..."
     message = await context.bot.send_message(chat_id=update.effective_chat.id, text=loading_message)
 
@@ -123,20 +157,22 @@ async def view_transaction_history(update: Update, context: CallbackContext):
 
 """"
 =============================================================================================
-top_up_wallet: Prompt new user for their details if required or direct them to get_topup_amount
-get_topup_amount: prompt user for top up amount
-proceed_payment: send payment invoice based on top up amount
-precheckout: Answer the PreQecheckoutQuery
-successful_payment: Confirms successful payment and sends API request to update relevant records
+Top up wallet is deprecated and supporting
+
+top_up_wallet: Prompt new user for their details if required or direct them to get_topup_amount (Deprecated)
+get_topup_amount: prompt user for top up amount (Deprecated)
+proceed_payment: send payment invoice based on top up amount (Deprecated)
+precheckout: Answer the PreQecheckoutQuery (Deprecated)
+successful_payment: Confirms successful payment and sends API request to update relevant records (Deprecated)
 =============================================================================================
 """
 
-async def top_up_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def top_up_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE): # Deprecated
     await get_topup_amount(update, context)
     return ROUTE
     
 
-async def get_topup_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def get_topup_amount(update: Update, context: ContextTypes.DEFAULT_TYPE): # Deprecated
     keyboard = [
         [InlineKeyboardButton("< Back to Menu", callback_data="wallet_options"),],
         [
@@ -160,7 +196,7 @@ async def get_topup_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     
 
-async def proceed_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def proceed_payment(update: Update, context: ContextTypes.DEFAULT_TYPE): # Deprecated
     query = update.callback_query
     await query.answer()    
     
@@ -192,7 +228,7 @@ async def proceed_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ROUTE
     
 
-async def precheckout(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def precheckout(update: Update, context: ContextTypes.DEFAULT_TYPE): # Deprecated
     logger.info("Validating invoice payload")
     query = update.pre_checkout_query
     # check the payload
@@ -203,7 +239,7 @@ async def precheckout(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer(ok=True)
 
 
-async def successful_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def successful_payment(update: Update, context: ContextTypes.DEFAULT_TYPE): # Deprecated
     """Confirms the successful payment."""
     user_id = update.message.from_user.id
     topup_amount = context.user_data["topup_amount"]

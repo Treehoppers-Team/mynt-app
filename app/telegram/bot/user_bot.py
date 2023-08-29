@@ -15,7 +15,7 @@ from bot_utils import (wallet_options, event_options,
 from bot_onboarding import new_user_menu, existing_user_menu
 from bot_onboarding import create_profile, get_new_user_name, register_new_user
 
-from bot_wallet_options import (view_wallet_balance,view_transaction_history, 
+from bot_wallet_options import (view_payment_total,view_transaction_history, 
                                 top_up_wallet, proceed_payment, 
                                 precheckout, successful_payment)
 
@@ -161,7 +161,8 @@ if __name__ == '__main__':
             ROUTE: {
                 CallbackQueryHandler(start, pattern="^start$"),
                 CallbackQueryHandler(wallet_options, pattern="^wallet_options$"),
-                CallbackQueryHandler(view_wallet_balance,pattern="^view_wallet_balance$"),
+                # CallbackQueryHandler(view_wallet_balance,pattern="^view_wallet_balance$"),
+                CallbackQueryHandler(view_payment_total,pattern="^view_payment_total$"),
                 CallbackQueryHandler(view_transaction_history, pattern="^view_transaction_history_(.*)$"),
                 CallbackQueryHandler(top_up_wallet, pattern="^top_up_wallet$"),
                 CallbackQueryHandler(create_profile, pattern="^create_profile$"),
