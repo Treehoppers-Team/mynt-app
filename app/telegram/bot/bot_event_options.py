@@ -399,17 +399,17 @@ async def validate_registration(update: Update, context: ContextTypes.DEFAULT_TY
     
     user_id = query.from_user.id
     double_registration = get_previous_registrations(user_id, event_title)
-    invalid_balance = check_balance(user_id, event_price)
+    # invalid_balance = check_balance(user_id, event_price)
 
     if double_registration:
         text=("You have already registered for this event. \n"
             "You cannot register for the same event again.")
         await send_default_event_message(update, context, text)
 
-    elif invalid_balance:
-        text=("You have insufficient funds. \n"
-            "Please top up your wallet in the Wallet menu.")
-        await send_default_event_message(update, context, text)
+    # elif invalid_balance:
+    #     text=("You have insufficient funds. \n"
+    #         "Please top up your wallet in the Wallet menu.")
+    #     await send_default_event_message(update, context, text)
     
     else:
         # Prompt user for payment confirmation
@@ -443,7 +443,10 @@ async def validate_registration(update: Update, context: ContextTypes.DEFAULT_TY
         
     return ROUTE
 
+## TODO: update logic relating to registration of paid events
+## Send Paynow QR code & UEN to user, and prompt user to click on "yes" once the payment has been confirmed
 
+## TODO: Remove/Comment out all wallet/ Mynt-Bank related functionality
 async def process_registration(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()  
