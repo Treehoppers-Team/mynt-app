@@ -544,4 +544,13 @@ module.exports = {
       return "Minting failed";
     }
   },
+
+  updateVerificationFirebase: async (verificationInfo) => {
+    const { registration_id, updatedVerificationField } = verificationInfo;
+  
+    const docRef = doc(db, "registrations", registration_id); 
+    const updateData = { verification: updatedVerificationField };
+  
+    await updateDoc(docRef, updateData);
+  }  
 };
