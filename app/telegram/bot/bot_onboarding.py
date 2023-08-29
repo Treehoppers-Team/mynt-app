@@ -33,8 +33,6 @@ async def new_user_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = ("👋 Hello and welcome to Mynt Connect! 🎉\n\n"
                "Our goal is to help the Mynt community connect through various events.\n\n"
                "You can explore, engage, and even purchase tickets for events using this platform.\n\n"
-               "To ease the process, we've added an in-built wallet for your convenience.\n\n"
-               "Start by creating your profile to access our events and top up your wallet. \n\n"
                "Click 'Create Profile' to get started! \n\n")
     if update.callback_query:
         query = update.callback_query
@@ -223,7 +221,6 @@ async def send_message_new_profile(update: Update, context: ContextTypes.DEFAULT
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text(
         text="You have successfully created your profile!\n\n"
-              "Head back to the menu to top up your in-app wallet, "
-              "view ongoing events and register for them!",
+              "Head back to the menu to view and register for ongoing events!",
         reply_markup=reply_markup
     )
