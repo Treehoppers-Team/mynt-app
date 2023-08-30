@@ -142,7 +142,7 @@ validate_registration: Validate event title and check previous registrations
 process_registration: Check whether user has sufficient balance in in-app wallet
 complete_purchase: Send API request to save payment records
 complete_registration: Send API request to save registration records
-check_balance: Check the users balance against the event price
+check_balance: Check the users balance against the event price (deprecated)
 =============================================================================================
 """
 
@@ -406,7 +406,7 @@ async def validate_registration(update: Update, context: ContextTypes.DEFAULT_TY
             "You cannot register for the same event again.")
         await send_default_event_message(update, context, text)
 
-    # elif invalid_balance:
+    # elif invalid_balance: (not needed anymore)
     #     text=("You have insufficient funds. \n"
     #         "Please top up your wallet in the Wallet menu.")
     #     await send_default_event_message(update, context, text)
@@ -434,7 +434,7 @@ async def validate_registration(update: Update, context: ContextTypes.DEFAULT_TY
         else:
             original_message = await context.bot.send_message(
                 chat_id=update.effective_chat.id,
-                text=f'Do you wish to make a payment of ${event_price} for the event using your Mynt Wallet?\n'
+                text=f'Do you wish to make a payment of ${event_price} for the event using Paynow?\n'
                 "Reply with Yes to confirm payment",
                 reply_markup=InlineKeyboardMarkup(keyboard),
                 parse_mode="markdown",
@@ -443,9 +443,6 @@ async def validate_registration(update: Update, context: ContextTypes.DEFAULT_TY
         
     return ROUTE
 
-## TODO: update logic relating to registration of paid events
-## Send Paynow QR code & UEN to user, and prompt user to click on "yes" once the payment has been confirmed
-
 ## TODO: Remove/Comment out all wallet/ Mynt-Bank related functionality
 async def process_registration(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -453,11 +450,12 @@ async def process_registration(update: Update, context: ContextTypes.DEFAULT_TYP
 
     user_id = query.from_user.id
     context.user_data["user_id"] = user_id
-    await complete_purchase(update, context)
-    await complete_registration(update, context)
+    await complete_purchase(update, context) #complete purchase can be adjusted to something else entirely
+    # await complete_registration(update, context)
     return ROUTE
 
-
+## TODO: update logic relating to registration of paid events
+## Send Paynow QR code & UEN to user, and prompt user to click on "yes" once the payment has been confirmed
 async def complete_purchase(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = context.user_data["user_id"]
     event_price = context.user_data["event_price"]
@@ -475,13 +473,25 @@ async def complete_purchase(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if response.status_code == 200:
         
         if event_price > 0:
-            context.user_data["registration_confirmation"] = await context.bot.send_message(
-                text=f"Your wallet balance has been updated successfully",
-                chat_id=update.effective_chat.id
-            )
+            keyboard = [[InlineKeyboardButton("< Back to Menu", callback_data="event_options"),],[InlineKeyboardButton("Yes I have paid", callback_data="complete_registration"),]]
+
+            reply_markup = InlineKeyboardMarkup(keyboard)
+
+            with open(f'./paynow/paynow_liam.jpg', 'rb') as f:
+                bio = io.BytesIO(f.read())
+
+            bio.seek(0)
+            context.user_data["registration_confirmation"] = await context.bot.send_photo(
+                chat_id=update.effective_chat.id, 
+                photo=InputFile(bio, filename='paynow_liam.jpg'),caption="Please scan the QR code to pay for the event",
+                reply_markup = reply_markup)
+            
+        else:
+            await complete_registration(update, context)
+
     else:
         context.user_data["registration_confirmation"] = await context.bot.send_message(
-            text=f"Sorry, something went wrong when updating your wallet balance",
+            text=f"Sorry, something went registering for the event, please press start",
             chat_id=update.effective_chat.id
         )
 
@@ -489,14 +499,19 @@ async def complete_purchase(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def complete_registration(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = context.user_data["user_id"]
     event_title = context.user_data["event_title"]
+    event_price = context.user_data["event_price"]
     event_type = context.user_data['event_type']
     registration_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     logger.info(f'{user_id} has successfully registered for {event_title} at {registration_time}')
 
-    if event_type == 'raffle':
-        status = 'PENDING'
-    elif event_type == 'fcfs':
+    registration_confirmation = context.user_data["registration_confirmation"] # delete registration confirmation message
+    await registration_confirmation.delete()
+
+    if event_type == 'fcfs' and event_price == 0:
         status = 'SUCCESSFUL'
+    else:  # does not matter if the event type is raffle or fcfs, this is because we need to check everyone's submission
+        status = 'PENDING'
+    
     data = {
         'user_id': user_id,
         'event_title': event_title,
@@ -511,9 +526,15 @@ async def complete_registration(update: Update, context: ContextTypes.DEFAULT_TY
             "conducting a raffle to randomly select the winners. \n"
             "We will notify you of the outcome via message. \n"
             "Thank you for your interest and we hope to see you at the event!")
-        elif event_type == 'fcfs':
+        elif event_type == 'fcfs'and event_price == 0:
             text=(f"You have successfully registered for {event_title}. \n"
             "Tickets will be sent to you closer to the event date \n"
+            "Thank you for your interest and we hope to see you at the event!")
+        else:
+            text=(f"You have successfully registered for {event_title}. \n"
+            "Please note that your registration does not guarantee a ticket. \n"
+            "We would first need to confirm your payment via paynow. \n"
+            "We will notify you of the outcome via message. \n"
             "Thank you for your interest and we hope to see you at the event!")
         await send_default_event_message(update, context, text)
         return ROUTE

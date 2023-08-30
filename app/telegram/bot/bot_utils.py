@@ -56,7 +56,7 @@ async def event_options(update: Update, context: ContextTypes.DEFAULT_TYPE):
             context.user_data['events_messages'] = None # doing this in case there are errors later if the 'events_messages' is not found (already deleted)
 
     except Exception:
-        print("event messages has not been set")
+        print("event messages has not bseeen set")
 
     try:
         if context.user_data["registration_confirmation"] != None: # if I want to delete the wallet deduction that is being triggered when a user successful registers for an event in complete_purchase in bot_event_options

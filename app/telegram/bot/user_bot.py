@@ -20,7 +20,7 @@ from bot_wallet_options import (view_payment_total,view_transaction_history,
                                 precheckout, successful_payment)
 
 from bot_event_options import (redeem, show_QR,view_events, check_registration, 
-                               validate_registration, process_registration)
+                               validate_registration, process_registration, complete_registration)
 
 load_dotenv()
 # Environment variables
@@ -174,6 +174,7 @@ if __name__ == '__main__':
                 CallbackQueryHandler(check_registration, pattern="^check_registration$"),
                 CallbackQueryHandler(validate_registration, pattern="^title_(.*)$"), ## Can handle any callback pattern,
                 CallbackQueryHandler(process_registration, pattern="^process_registration$"),
+                CallbackQueryHandler(complete_registration, pattern="^complete_registration$"),
                 CallbackQueryHandler(redeem, pattern="^redeem$"),
                 CallbackQueryHandler(show_QR, pattern="^show_QR_(.*)$"),
                 CommandHandler('start', start),
