@@ -15,11 +15,13 @@ from bot_utils import (wallet_options, event_options,
 from bot_onboarding import new_user_menu, existing_user_menu
 from bot_onboarding import create_profile, get_new_user_name, register_new_user
 
-from bot_wallet_options import (view_payment_total,view_transaction_history, 
+from bot_wallet_options import ( 
                                 top_up_wallet, proceed_payment, 
                                 precheckout, successful_payment)
 
-from bot_event_options import (redeem, show_QR,view_events, check_registration, 
+from bot_event_options import (view_transaction_history,
+                               redeem, 
+                               show_QR,view_events, check_registration, 
                                validate_registration, process_registration, complete_registration)
 
 load_dotenv()
@@ -162,7 +164,6 @@ if __name__ == '__main__':
                 CallbackQueryHandler(start, pattern="^start$"),
                 CallbackQueryHandler(wallet_options, pattern="^wallet_options$"),
                 # CallbackQueryHandler(view_wallet_balance,pattern="^view_wallet_balance$"),
-                CallbackQueryHandler(view_payment_total,pattern="^view_payment_total$"),
                 CallbackQueryHandler(view_transaction_history, pattern="^view_transaction_history_(.*)$"),
                 CallbackQueryHandler(top_up_wallet, pattern="^top_up_wallet$"),
                 CallbackQueryHandler(create_profile, pattern="^create_profile$"),

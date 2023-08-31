@@ -8,7 +8,7 @@ from telegram import (
     Update, InlineKeyboardButton, InlineKeyboardMarkup, PhotoSize, InputFile
 )
 from telegram.ext import (
-    ContextTypes, ConversationHandler,
+    ContextTypes, ConversationHandler, CallbackContext,
 )
 import os
 from dotenv import load_dotenv
@@ -131,6 +131,95 @@ async def show_QR(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context, 
         "Head back the the menu if your verification was successful"
     )
+    return ROUTE
+
+""""
+=============================================================================================
+view_transaction_history: Display transaction history of user 
+=============================================================================================
+"""
+
+def format_txn_history(response_data,user_balance=0):
+    if len(response_data) > 0:
+        text = f"Your transaction History is as follows\n" \
+               f"Your wallet balance is ${user_balance}\n\n"
+
+        for transaction in response_data:
+            transaction_type = transaction['transactionType']
+            amount = transaction['amount']
+            time = transaction['timestamp']
+            event = transaction['eventTitle'] if 'eventTitle' in transaction else "-"
+
+            text += f"Transaction Type: *{transaction_type}*\n" \
+                f"Amount: ${amount}\n" \
+                f"Time: {time}\n" \
+                f"Event: {event}\n\n"
+    else:
+        text = "You have no prior transactions"
+    return text
+    
+async def view_transaction_history(update: Update, context: CallbackContext):
+    loading_message = "Retrieving transaction history..."
+    message = await context.bot.send_message(chat_id=update.effective_chat.id, text=loading_message)
+    query = update.callback_query
+    await query.answer()
+    user_id = query.from_user.id
+
+    response_data = []
+
+    response_data_registraton = requests.get(endpoint_url + f"/getRegistrations/{user_id}")
+    response_registration= response_data_registraton.json()
+    response_data_transaction = requests.get(endpoint_url + f"/viewTransactionHistory/{user_id}") #I may want to move this out into the main page so that people can call it
+    response_transaction = response_data_transaction.json()
+
+    user_balance = 0
+
+    for event in response_registration: #work on optimizing this
+      event_title = event['eventTitle']
+      status = event['status']
+
+      if status == "SUCCESSFUL" or status == "REDEEMED":
+          print(f"{event_title} was successful")
+          for transaction in response_transaction:
+              event = transaction['eventTitle'] if 'eventTitle' in transaction else "-"
+              if event_title == event:
+                  amount = transaction['amount']
+                  print(f"{event_title} was {amount}")
+                  user_balance += amount
+                  response_data.append(transaction)
+
+    # Reverse the order of the response_data list to show latest transactions first
+    response_data.reverse()
+
+    # Get the current page number from user_data, default to page 1
+    page_num = int(query.data.split("_")[-1])
+    context.user_data['page_num'] = page_num
+
+    # Calculate the starting and ending index of transactions to display
+    num_per_page = 3
+    start_idx = (page_num - 1) * num_per_page
+    end_idx = start_idx + num_per_page
+
+    # Slice the transactions to display only the ones for the current page
+    transactions = response_data[start_idx:end_idx]
+
+    # Format the transactions as text
+    text = format_txn_history(transactions,user_balance)
+    await message.delete()
+
+    # Create the inline keyboard for pagination
+    keyboard = [[InlineKeyboardButton("< Back to Menu", callback_data="event_options"),],]
+    if start_idx > 0:
+        # Add "Previous" button if not on the first page
+        keyboard.append([InlineKeyboardButton("Previous", callback_data=f"view_transaction_history_{page_num-1}")])
+    if end_idx < len(response_data):
+        # Add "Next" button if not on the last page
+        keyboard.append([InlineKeyboardButton("Next", callback_data=f"view_transaction_history_{page_num+1}")])
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    # Send the message with pagination and update user_data with the current page number
+    await query.edit_message_text(text=text, reply_markup=reply_markup)
+
     return ROUTE
 
 """"
@@ -443,16 +532,16 @@ async def validate_registration(update: Update, context: ContextTypes.DEFAULT_TY
         
     return ROUTE
 
-## TODO: Remove/Comment out all wallet/ Mynt-Bank related functionality
 async def process_registration(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()  
 
     user_id = query.from_user.id
     context.user_data["user_id"] = user_id
-    await complete_purchase(update, context) #complete purchase can be adjusted to something else entirely
-    # await complete_registration(update, context)
+    await complete_purchase(update, context) # await complete_registration(update, context) - called within complete purchase
     return ROUTE
+
+## TODO: Remove/Comment out all wallet/ Mynt-Bank related functionality
 
 ## TODO: update logic relating to registration of paid events
 ## Send Paynow QR code & UEN to user, and prompt user to click on "yes" once the payment has been confirmed

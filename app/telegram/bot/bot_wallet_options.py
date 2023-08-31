@@ -33,49 +33,12 @@ view_wallet_balance: Display balance of user's wallet (Deprecated)
 view_transaction_history: Display transaction history of user 
 =============================================================================================
 """
+
 async def get_user_id_from_query(update):
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
     return user_id
-
-
-async def view_payment_total(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    loading_message = "Retrieving Payment Total..."
-    message = await context.bot.send_message(chat_id=update.effective_chat.id, text=loading_message)
-
-    user_id = await get_user_id_from_query(update)
-
-    # needs to be updated (les clunky)
-    # logger.info(f"Retrieving wallet balance for User: {user_id}")
-    # response = requests.get(endpoint_url + f"/viewWalletBalance/{user_id}")
-    # response_data = response.json()
-
-    response_data_registraton = requests.get(endpoint_url + f"/getRegistrations/{user_id}")
-    response_registration= response_data_registraton.json()
-    response_data_transaction = requests.get(endpoint_url + f"/viewTransactionHistory/{user_id}") #I may want to move this out into the main page so that people can call it
-    response_transaction = response_data_transaction.json()
-
-    user_balance = 0
-
-    for event in response_registration: #work on optimizing this
-        event_title = event['eventTitle']
-        status = event['status']
-
-        if status == "SUCCESSFUL" or status == "REDEEMED":
-            print(f"{event_title} was successful")
-            for transaction in response_transaction:
-                event = transaction['eventTitle'] if 'eventTitle' in transaction else "-"
-                if event_title == event:
-                    amount = transaction['amount']
-                    print(f"{event_title} was {amount}")
-                    user_balance += amount
-              
-
-    text=f'The total you have paid is ${user_balance}'
-    await message.delete()
-    await update_default_wallet_message(update, context, text)
-    return ROUTE
 
 async def view_wallet_balance(update: Update, context: ContextTypes.DEFAULT_TYPE): # Deprecated
     loading_message = "Retrieving wallet balance..."
@@ -92,9 +55,10 @@ async def view_wallet_balance(update: Update, context: ContextTypes.DEFAULT_TYPE
     await update_default_wallet_message(update, context, text)
     return ROUTE
 
-def format_txn_history(response_data):
+def format_txn_history(response_data,user_balance=0):
     if len(response_data) > 0:
-        text = "Your transaction History is as follows \n\n"
+        text = f"Your transaction History is as follows\n" \
+               f"Your wallet balance is ${user_balance}\n\n"
 
         for transaction in response_data:
             transaction_type = transaction['transactionType']
@@ -116,10 +80,29 @@ async def view_transaction_history(update: Update, context: CallbackContext):
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
-    
-    logger.info(f"Retrieving transaction history for User: {user_id}")
-    response = requests.get(endpoint_url + f"/viewTransactionHistory/{user_id}")
-    response_data = response.json()
+
+    response_data = []
+
+    response_data_registraton = requests.get(endpoint_url + f"/getRegistrations/{user_id}")
+    response_registration= response_data_registraton.json()
+    response_data_transaction = requests.get(endpoint_url + f"/viewTransactionHistory/{user_id}") #I may want to move this out into the main page so that people can call it
+    response_transaction = response_data_transaction.json()
+
+    user_balance = 0
+
+    for event in response_registration: #work on optimizing this
+      event_title = event['eventTitle']
+      status = event['status']
+
+      if status == "SUCCESSFUL" or status == "REDEEMED":
+          print(f"{event_title} was successful")
+          for transaction in response_transaction:
+              event = transaction['eventTitle'] if 'eventTitle' in transaction else "-"
+              if event_title == event:
+                  amount = transaction['amount']
+                  print(f"{event_title} was {amount}")
+                  user_balance += amount
+                  response_data.append(transaction)
 
     # Reverse the order of the response_data list to show latest transactions first
     response_data.reverse()
@@ -137,7 +120,7 @@ async def view_transaction_history(update: Update, context: CallbackContext):
     transactions = response_data[start_idx:end_idx]
 
     # Format the transactions as text
-    text = format_txn_history(transactions)
+    text = format_txn_history(transactions,user_balance)
     await message.delete()
 
     # Create the inline keyboard for pagination

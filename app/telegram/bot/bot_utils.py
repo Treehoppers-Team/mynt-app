@@ -29,8 +29,6 @@ async def wallet_options(update: Update, context: ContextTypes.DEFAULT_TYPE):
         print("invoice message has not been set")
 
     keyboard = [
-        [InlineKeyboardButton("View Payment Total",callback_data="view_payment_total"),],
-        # [InlineKeyboardButton("View Wallet Balance",callback_data="view_wallet_balance"),],
         [InlineKeyboardButton("View Transaction History",callback_data="view_transaction_history_1"),],
         # [InlineKeyboardButton("Top Up Wallet", callback_data="top_up_wallet"),],
         [InlineKeyboardButton("< Back", callback_data="start"),],
@@ -72,6 +70,7 @@ async def event_options(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("View Ongoing Events", callback_data="view_events"),],
         [InlineKeyboardButton("View Registration Status", callback_data="check_registration"),],
+        [InlineKeyboardButton("View Transaction History",callback_data="view_transaction_history_1"),],
         [InlineKeyboardButton("Redeem Event Ticket", callback_data="redeem"),],
         [InlineKeyboardButton("< Back", callback_data="start"),],
     ]

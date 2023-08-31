@@ -53,7 +53,6 @@ async def new_user_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
 async def existing_user_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
-        [InlineKeyboardButton("Payment History", callback_data="wallet_options"),],
         [InlineKeyboardButton("Event", callback_data="event_options"),]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
