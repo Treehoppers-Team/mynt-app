@@ -97,7 +97,30 @@ const Table: React.FC<TableProps> = ({ data }) => {
   };
   
   const handleReject = () => {
-    // Implement rejection logic here
+    console.log("This is the handle rejected button")
+    console.log(selectedRows)
+    let counter = 0;
+
+      for (let i = 0; i < selectedRows.length; i++) {
+        console.log(selectedRows[i])
+        const registrationData = {
+          user_id: selectedRows[i],
+          event_title: "Test Event Verification",
+          verification: "REJECTED",
+        };
+        axios
+          .post(BASE + "/updateRegistration", registrationData)
+          .then((response: { data: any }) => {
+            console.log(response.data);
+            counter += 1;
+          })
+          .then(() => {
+            if (counter === selectedRows.length) {
+              console.log("verification updated");
+              window.location.reload();
+            }
+          });
+      }
   };
 
   return (
@@ -178,7 +201,6 @@ const Table: React.FC<TableProps> = ({ data }) => {
           {sortedData.map((row, index) => (
             <tr key={index}>
               <td className="border px-4 py-2">
-              {row.id}
                 <input
                   type="checkbox"
                   checked={selectedRows.includes(row.id)}
