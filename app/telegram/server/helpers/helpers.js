@@ -238,6 +238,7 @@ module.exports = {
       eventTitle: registrationInfo.event_title,
       status: registrationInfo.status,
       registration_time: registrationInfo.registration_time,
+      verification: registrationInfo.verification
     };
     // Doc ID needs to be a string
     const docId = docData.userId + docData.eventTitle;
@@ -249,25 +250,22 @@ module.exports = {
       userId: registrationInfo.user_id.toString(),
       eventTitle: registrationInfo.event_title,
       status: registrationInfo.status,
+      verification: registrationInfo.verification,
       mint_account: registrationInfo.mint_account,
+      redemption_time: registrationInfo.redemption_time
     };
-
-    // Include redemption_time only if it exists
-    if (registrationInfo.redemption_time) {
-      docData.redemption_time = registrationInfo.redemption_time;
-    }
-
-    if (registrationInfo.mint_account) {
-      docData.mint_account = registrationInfo.mint_account;
-    }
 
     const docId = docData.userId + docData.eventTitle;
     const docRef = doc(db, "registrations", docId.toString());
 
-    // Include redemption_time only if it exists
-    const updateData = {
-      status: docData.status,
-    };
+    // Fields that are applicable to be updated are
+    const updateData = {};
+    if(docData.status) {
+      updateData.status = docData.status
+    }
+    if(docData.verification) {
+      updateData.verification = docData.verification
+    }
     if (docData.redemption_time) {
       updateData.redemption_time = docData.redemption_time;
     }
@@ -275,7 +273,11 @@ module.exports = {
       updateData.mint_account = docData.mint_account;
     }
 
+  if (Object.keys(updateData).length > 0) {
     await updateDoc(docRef, updateData);
+  } else {
+    console.log("updateRegistrationFirebase: No fields to update.");
+  }
   },
 
   getNftInfoFirebase: async (eventTitle) => {
@@ -542,4 +544,13 @@ module.exports = {
       return "Minting failed";
     }
   },
+
+  updateVerificationFirebase: async (verificationInfo) => {
+    const { registration_id, updatedVerificationField } = verificationInfo;
+  
+    const docRef = doc(db, "registrations", registration_id); 
+    const updateData = { verification: updatedVerificationField };
+  
+    await updateDoc(docRef, updateData);
+  }  
 };
