@@ -53,7 +53,7 @@ async def new_user_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
 async def existing_user_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
-        [InlineKeyboardButton("Event", callback_data="event_options"),]
+        [InlineKeyboardButton("Mynt Now!", callback_data="event_options"),]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     message = ("👋 Hello and welcome to Mynt Connect! 🎉\n\n"

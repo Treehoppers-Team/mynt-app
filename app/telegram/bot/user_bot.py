@@ -15,9 +15,9 @@ from bot_utils import (wallet_options, event_options,
 from bot_onboarding import new_user_menu, existing_user_menu
 from bot_onboarding import create_profile, get_new_user_name, register_new_user
 
-from bot_wallet_options import ( 
-                                top_up_wallet, proceed_payment, 
-                                precheckout, successful_payment)
+# from bot_wallet_options import ( 
+#                                 top_up_wallet, proceed_payment, 
+#                                 precheckout, successful_payment)
 
 from bot_event_options import (view_transaction_history,
                                redeem, 
@@ -119,6 +119,15 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception:
             print("original message has not been set")
 
+        try:
+            if context.user_data['QR'] != None: # if I want to delete the original message that is being triggered by sending /start during top_up_wallet
+                QR = context.user_data['QR']
+                await QR.delete()
+                context.user_data['QR'] = None # doing this in case there are errosr later if the invoice_message is not found (already deleted)
+
+        except Exception:
+            print("QR message has not been set")
+
     print("----------------------------")
 
     if context.user_data["new_user"] == True:
@@ -165,11 +174,11 @@ if __name__ == '__main__':
                 CallbackQueryHandler(wallet_options, pattern="^wallet_options$"),
                 # CallbackQueryHandler(view_wallet_balance,pattern="^view_wallet_balance$"),
                 CallbackQueryHandler(view_transaction_history, pattern="^view_transaction_history_(.*)$"),
-                CallbackQueryHandler(top_up_wallet, pattern="^top_up_wallet$"),
+                # CallbackQueryHandler(top_up_wallet, pattern="^top_up_wallet$"),
                 CallbackQueryHandler(create_profile, pattern="^create_profile$"),
-                CallbackQueryHandler(proceed_payment, pattern="^top_up_10$"),
-                CallbackQueryHandler(proceed_payment, pattern="^top_up_50$"),
-                CallbackQueryHandler(proceed_payment, pattern="^top_up_100$"),
+                # CallbackQueryHandler(proceed_payment, pattern="^top_up_10$"),
+                # CallbackQueryHandler(proceed_payment, pattern="^top_up_50$"),
+                # CallbackQueryHandler(proceed_payment, pattern="^top_up_100$"),
                 CallbackQueryHandler(event_options, pattern="^event_options$"),
                 CallbackQueryHandler(view_events, pattern="^view_events$"),
                 CallbackQueryHandler(check_registration, pattern="^check_registration$"),
@@ -193,8 +202,8 @@ if __name__ == '__main__':
     )
     application.add_handler(conversation_handler)
 
-    application.add_handler(PreCheckoutQueryHandler(precheckout)) # Payment Services
-    application.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, successful_payment)) # Payment Services
+    # application.add_handler(PreCheckoutQueryHandler(precheckout)) # Payment Services
+    # application.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, successful_payment)) # Payment Services
     application.add_handler(MessageHandler(filters.TEXT, unknown)) # Unknown messages
     application.add_error_handler(error_handler) # Error handling
 

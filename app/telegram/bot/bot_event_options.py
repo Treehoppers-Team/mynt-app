@@ -13,7 +13,7 @@ from telegram.ext import (
 import os
 from dotenv import load_dotenv
 
-from bot_utils import (send_default_message, send_default_event_message,
+from bot_utils import (send_default_event_message,
                        update_default_event_message)
 
 ROUTE, NEW_USER, NEW_USER_NAME, SHOW_QR = range(4)
@@ -55,7 +55,12 @@ def get_successful_registrations(response_data):
         eventTitle = events['eventTitle']
         status = events['status']
         user_id = events['userId']
-        if status =="SUCCESSFUL": 
+        try:  
+          verification = events['verification']
+        except Exception:
+          verification = "UNVERIFIED"
+          print("verification has not been set, check server.js and helper.js")
+        if status =="SUCCESSFUL" and verification == "VERIFIED": 
             registered_events[eventTitle] = {
                 'userId': user_id, 'status': status, 'eventTitle': eventTitle}
             reply_string += f'\n {count}. {eventTitle}'
@@ -106,17 +111,23 @@ async def show_QR(update: Update, context: ContextTypes.DEFAULT_TYPE):
     qr_information = registered_events[ticket]
     qr_information_str = json.dumps(qr_information)
 
-    await context.bot.send_message(
-        chat_id= user_chat_id,
-        text = f'Show this QR code to redeem your ticket for {ticket}'
-    )
+    # await context.bot.send_message(
+    #     chat_id= user_chat_id,
+    #     text = f'Show this QR code to redeem your ticket for {ticket}'
+    # )
+
+    original_message = context.user_data['original_message'] # initialized during the start function
+    await original_message.delete()
+
     url = pyqrcode.create(qr_information_str)
     url.png(f'./qr_codes/{user_id}.png', scale=6)
     with open(f'./qr_codes/{user_id}.png', 'rb') as f:
         bio = io.BytesIO(f.read())
 
     bio.seek(0)
-    await context.bot.send_photo(chat_id=user_chat_id, photo=InputFile(bio, filename='qr_code.png'))
+    QR = await context.bot.send_photo(chat_id=user_chat_id, photo=InputFile(bio, filename='qr_code.png'),caption=f'Show this QR code to redeem your ticket for {ticket}')
+
+    context.user_data['QR'] = QR
 
     # add code to delete photo as well
     # current_path = os.getcwd()
@@ -126,100 +137,11 @@ async def show_QR(update: Update, context: ContextTypes.DEFAULT_TYPE):
     #     picture_path = current_path + f'/qr_codes/{user_id}.png'
     # # print(f'Your current path is {picture_path}')
     # os.remove(picture_path)
-    await send_default_message(
+    await send_default_event_message(
         update, 
         context, 
-        "Head back the the menu if your verification was successful"
+        "Head back to the menu if your verification was successful"
     )
-    return ROUTE
-
-""""
-=============================================================================================
-view_transaction_history: Display transaction history of user 
-=============================================================================================
-"""
-
-def format_txn_history(response_data,user_balance=0):
-    if len(response_data) > 0:
-        text = f"Your transaction History is as follows\n" \
-               f"Your wallet balance is ${user_balance}\n\n"
-
-        for transaction in response_data:
-            transaction_type = transaction['transactionType']
-            amount = transaction['amount']
-            time = transaction['timestamp']
-            event = transaction['eventTitle'] if 'eventTitle' in transaction else "-"
-
-            text += f"Transaction Type: *{transaction_type}*\n" \
-                f"Amount: ${amount}\n" \
-                f"Time: {time}\n" \
-                f"Event: {event}\n\n"
-    else:
-        text = "You have no prior transactions"
-    return text
-    
-async def view_transaction_history(update: Update, context: CallbackContext):
-    loading_message = "Retrieving transaction history..."
-    message = await context.bot.send_message(chat_id=update.effective_chat.id, text=loading_message)
-    query = update.callback_query
-    await query.answer()
-    user_id = query.from_user.id
-
-    response_data = []
-
-    response_data_registraton = requests.get(endpoint_url + f"/getRegistrations/{user_id}")
-    response_registration= response_data_registraton.json()
-    response_data_transaction = requests.get(endpoint_url + f"/viewTransactionHistory/{user_id}") #I may want to move this out into the main page so that people can call it
-    response_transaction = response_data_transaction.json()
-
-    user_balance = 0
-
-    for event in response_registration: #work on optimizing this
-      event_title = event['eventTitle']
-      status = event['status']
-
-      if status == "SUCCESSFUL" or status == "REDEEMED":
-          print(f"{event_title} was successful")
-          for transaction in response_transaction:
-              event = transaction['eventTitle'] if 'eventTitle' in transaction else "-"
-              if event_title == event:
-                  amount = transaction['amount']
-                  print(f"{event_title} was {amount}")
-                  user_balance += amount
-                  response_data.append(transaction)
-
-    # Reverse the order of the response_data list to show latest transactions first
-    response_data.reverse()
-
-    # Get the current page number from user_data, default to page 1
-    page_num = int(query.data.split("_")[-1])
-    context.user_data['page_num'] = page_num
-
-    # Calculate the starting and ending index of transactions to display
-    num_per_page = 3
-    start_idx = (page_num - 1) * num_per_page
-    end_idx = start_idx + num_per_page
-
-    # Slice the transactions to display only the ones for the current page
-    transactions = response_data[start_idx:end_idx]
-
-    # Format the transactions as text
-    text = format_txn_history(transactions,user_balance)
-    await message.delete()
-
-    # Create the inline keyboard for pagination
-    keyboard = [[InlineKeyboardButton("< Back to Menu", callback_data="event_options"),],]
-    if start_idx > 0:
-        # Add "Previous" button if not on the first page
-        keyboard.append([InlineKeyboardButton("Previous", callback_data=f"view_transaction_history_{page_num-1}")])
-    if end_idx < len(response_data):
-        # Add "Next" button if not on the last page
-        keyboard.append([InlineKeyboardButton("Next", callback_data=f"view_transaction_history_{page_num+1}")])
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
-    # Send the message with pagination and update user_data with the current page number
-    await query.edit_message_text(text=text, reply_markup=reply_markup)
-
     return ROUTE
 
 """"
@@ -444,7 +366,7 @@ def get_previous_registrations(user_id, event_title):
     return False
 
 
-def check_balance(user_id, event_price):
+def check_balance(user_id, event_price): # deprecated
     logger.info(f"Verifying balance for user {user_id}")
     response = requests.get(endpoint_url + f"/viewWalletBalance/{user_id}")
     response_data = response.json()
@@ -514,7 +436,7 @@ async def validate_registration(update: Update, context: ContextTypes.DEFAULT_TY
         if event_price == 0:
             original_message = await context.bot.send_message(
                 chat_id=update.effective_chat.id,
-                text=f'Do you wish to confirm your registration for the event: {event_title} ?\n'
+                text=f'Do you wish to confirm your registration for the event: {event_title}?\n'
                 "Reply with Yes to confirm",
                 reply_markup=InlineKeyboardMarkup(keyboard),
                 parse_mode="markdown",
@@ -534,7 +456,7 @@ async def validate_registration(update: Update, context: ContextTypes.DEFAULT_TY
 
 async def process_registration(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer()  
+    await query.answer()
 
     user_id = query.from_user.id
     context.user_data["user_id"] = user_id
@@ -559,6 +481,10 @@ async def complete_purchase(update: Update, context: ContextTypes.DEFAULT_TYPE):
     }
     response = requests.post(endpoint_url + "/ticketSale", json=data)
     logger.info("Saving payment records")
+
+    original_message = context.user_data['original_message'] 
+    await original_message.delete()
+    
     if response.status_code == 200:
         
         if event_price > 0:
@@ -596,15 +522,18 @@ async def complete_registration(update: Update, context: ContextTypes.DEFAULT_TY
     registration_confirmation = context.user_data["registration_confirmation"] # delete registration confirmation message
     await registration_confirmation.delete()
 
-    if event_type == 'fcfs' and event_price == 0:
+    if event_type == 'fcfs':
         status = 'SUCCESSFUL'
-    else:  # does not matter if the event type is raffle or fcfs, this is because we need to check everyone's submission
+        verification = "UNVERIFIED"
+    else:  
         status = 'PENDING'
+        verification = "VERIFIED"
     
     data = {
         'user_id': user_id,
         'event_title': event_title,
         'status': status,
+        'verification': verification,
         'registration_time': registration_time,
     }
     response = requests.post(endpoint_url + "/insertRegistration", json=data)
@@ -612,8 +541,8 @@ async def complete_registration(update: Update, context: ContextTypes.DEFAULT_TY
         if event_type == 'raffle':
             text=(f"You have successfully registered for {event_title}. \n"
             "Please note that your registration does not guarantee a ticket, as we will be "
-            "conducting a raffle to randomly select the winners. \n"
-            "We will notify you of the outcome via message. \n"
+            "conducting a raffle to randomly select the winners. \n\n"
+            "We will notify you of the outcome via a telegram message. \n\n"
             "Thank you for your interest and we hope to see you at the event!")
         elif event_type == 'fcfs'and event_price == 0:
             text=(f"You have successfully registered for {event_title}. \n"
@@ -621,12 +550,102 @@ async def complete_registration(update: Update, context: ContextTypes.DEFAULT_TY
             "Thank you for your interest and we hope to see you at the event!")
         else:
             text=(f"You have successfully registered for {event_title}. \n"
-            "Please note that your registration does not guarantee a ticket. \n"
-            "We would first need to confirm your payment via paynow. \n"
-            "We will notify you of the outcome via message. \n"
+            "Please note that your registration does not guarantee a ticket. \n\n"
+            "We would first need to confirm your payment via paynow. and will notify you of the outcome via a telegram message. \n\n"
             "Thank you for your interest and we hope to see you at the event!")
         await send_default_event_message(update, context, text)
         return ROUTE
     else:
         await update.message.reply_text("Sorry, something went wrong with your registration")
         return ConversationHandler.END
+
+
+""""
+=============================================================================================
+view_transaction_history: Display transaction history of user 
+=============================================================================================
+"""
+
+def format_txn_history(response_data,user_balance=0):
+    if len(response_data) > 0:
+        text = f"Your transaction History is as follows\n" \
+               f"Your amount you have paid in total is ${user_balance}\n\n"
+
+        for transaction in response_data:
+            transaction_type = transaction['transactionType']
+            amount = transaction['amount']
+            time = transaction['timestamp']
+            event = transaction['eventTitle'] if 'eventTitle' in transaction else "-"
+
+            text += f"Transaction Type: *{transaction_type}*\n" \
+                f"Amount: ${amount}\n" \
+                f"Time: {time}\n" \
+                f"Event: {event}\n\n"
+    else:
+        text = "You have no prior transactions"
+    return text
+    
+async def view_transaction_history(update: Update, context: CallbackContext):
+    loading_message = "Retrieving transaction history..."
+    message = await context.bot.send_message(chat_id=update.effective_chat.id, text=loading_message)
+    query = update.callback_query
+    await query.answer()
+    user_id = query.from_user.id
+
+    response_data = []
+
+    response_data_registraton = requests.get(endpoint_url + f"/getRegistrations/{user_id}")
+    response_registration= response_data_registraton.json()
+    response_data_transaction = requests.get(endpoint_url + f"/viewTransactionHistory/{user_id}")
+    response_transaction = response_data_transaction.json()
+
+    user_balance = 0
+
+    for event in response_registration[::-1]: # we want to push the latest registration to the top
+      event_title = event['eventTitle']
+      status = event['status']
+
+      if status == "SUCCESSFUL" or status == "REDEEMED":
+          print(f"{event_title} was successful")
+          for transaction in response_transaction[::-1]: # in the event of duplicate transactions, we want only the latest one, so we reverse the list to push the latest transaction to the top
+              event = transaction['eventTitle'] if 'eventTitle' in transaction else "-"
+              if event_title == event:
+                  amount = transaction['amount']
+                  print(f"{event_title} was {amount}")
+                  user_balance += amount
+                  response_data.append(transaction)
+                  break # break the for loop because we locate the most recent transaction for that event in the case of duplicate tr
+              
+    # # push the latest transaction to the top
+    # response_data.reverse()
+
+    # Get the current page number from user_data, default to page 1
+    page_num = int(query.data.split("_")[-1])
+    context.user_data['page_num'] = page_num
+
+    # Calculate the starting and ending index of transactions to display
+    num_per_page = 3
+    start_idx = (page_num - 1) * num_per_page
+    end_idx = start_idx + num_per_page
+
+    # Slice the transactions to display only the ones for the current page
+    transactions = response_data[start_idx:end_idx]
+
+    # Format the transactions as text
+    text = format_txn_history(transactions,user_balance)
+    await message.delete()
+
+    # Create the inline keyboard for pagination
+    keyboard = [[InlineKeyboardButton("< Back to Menu", callback_data="event_options"),],]
+    if start_idx > 0:
+        # Add "Previous" button if not on the first page
+        keyboard.append([InlineKeyboardButton("Previous", callback_data=f"view_transaction_history_{page_num-1}")])
+    if end_idx < len(response_data):
+        # Add "Next" button if not on the last page
+        keyboard.append([InlineKeyboardButton("Next", callback_data=f"view_transaction_history_{page_num+1}")])
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    # Send the message with pagination and update user_data with the current page number
+    await query.edit_message_text(text=text, reply_markup=reply_markup)
+
+    return ROUTE
