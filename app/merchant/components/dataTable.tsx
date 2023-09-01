@@ -15,11 +15,24 @@ interface TableRow {
   redemption_time: string;
 }
 
-interface TableProps {
-  data: TableRow[];
+interface Event {
+  capacity: string;
+  description: string;
+  eventType: string;
+  imageCID: string;
+  price: number;
+  symbol: string;
+  time: string;
+  title: string;
+  venue: string;
 }
 
-const Table: React.FC<TableProps> = ({ data }) => {
+interface TableProps {
+  data: TableRow[];
+  event: Event;
+}
+
+const Table: React.FC<TableProps> = ({ data, event }) => {
   const [sortColumn, setSortColumn] = useState<string>("name");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
@@ -78,7 +91,7 @@ const Table: React.FC<TableProps> = ({ data }) => {
         console.log(selectedRows[i])
         const registrationData = {
           user_id: selectedRows[i],
-          event_title: "Test Event Verification",
+          event_title: event.title,
           verification: "VERIFIED",
         };
         axios
@@ -105,7 +118,7 @@ const Table: React.FC<TableProps> = ({ data }) => {
         console.log(selectedRows[i])
         const registrationData = {
           user_id: selectedRows[i],
-          event_title: "Test Event Verification",
+          event_title: event.title,
           verification: "REJECTED",
         };
         axios

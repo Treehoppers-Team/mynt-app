@@ -261,7 +261,7 @@ const Content = () => {
               <EventStats events={stats} />
             </div>
 
-            <Table data={table} />
+            <Table data={table} event={event} />
           </div>
           {scan ? (
             <>
