@@ -40,8 +40,12 @@ const EventForm = () => {
     if (symbol.length > 18) {
       alert('Symbol must be 18 characters or less!');
       return;
-    }    
+    }
     
+    if (eventType === 'fcfs' && Number(price) <= 0) {
+      alert('Price must be greater than 0 for FCFS events.');
+      return;
+    }
 
     const ipfsHash = await pinataUpload(image);
 
@@ -165,8 +169,9 @@ const EventForm = () => {
           id="price"
           type="text"
           placeholder="Enter the registration price"
-          value={price}
+          value={eventType === 'raffle' ? 0 : price}
           onChange={(e) => setPrice(e.target.value)}
+          disabled={eventType === 'raffle'}
         />
       </div>
       <div className="mb-4">

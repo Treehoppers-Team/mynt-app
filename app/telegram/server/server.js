@@ -139,12 +139,13 @@ app.get("/getEventRegistrations/:event_title", (req, res) => {
 });
 
 app.post("/updateRegistration", (req, res) => {
-  const { user_id, event_title, status, mint_account, redemption_time } =
+  const { user_id, event_title, status, verification, mint_account, redemption_time } =
     req.body;
   const registrationInfo = {
     user_id,
     event_title,
     status,
+    verification,
     mint_account,
     redemption_time,
   };
@@ -179,7 +180,7 @@ app.get("/getAllRegistrations", (req, res) => {
 
 app.post("/insertRegistration", (req, res) => {
   const { user_id, event_title, status, registration_time } = req.body;
-  const registrationInfo = { user_id, event_title, status, registration_time };
+  const registrationInfo = { user_id, event_title, status, registration_time, verification: 'UNVERIFIED' };
   try {
     insertRegistrationFirebase(registrationInfo).then(() => {
       res
@@ -353,6 +354,36 @@ const handleMint = async (userIds, eventTitle) => {
   }
   return mintTransactionArray;
 };
+
+app.post('/updateVerification', async (req, res) => {
+  try {
+    const { registration_ids, updatedVerificationField } = req.body;
+
+    // Ensure that user_ids is an array
+    if (!Array.isArray(registration_ids)) {
+      return res.status(400).json({ error: 'registration_ids must be an array' });
+    }
+
+    // Create an array of promises for updating verifications
+    const updatePromises = registration_ids.map(async (registration_id) => {
+      const verificationInfo = {
+        registration_id: registration_id,
+        updatedVerificationField: updatedVerificationField
+      };
+      await updateVerificationFirebase(verificationInfo);
+    });
+
+    // Execute all update promises
+    await Promise.all(updatePromises);
+
+    res.status(200).json({
+      message: `Verification field of documents provided in registration_ids have been successfully updated to ${updatedVerificationField}`
+    });
+  } catch (err) {
+    console.log("/updateVerification error", err);
+    res.status(500).json({ error: "An error occurred while updating verifications" });
+  }
+});
 
 // Start the Express.js web server
 app.listen(port, () => console.log(`Express.js API listening on port ${port}`));

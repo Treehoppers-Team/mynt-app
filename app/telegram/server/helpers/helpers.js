@@ -42,31 +42,14 @@ const {
 require("dotenv").config({ path: "./.env" });
 
 const idl = require("../idl.json");
-const firebaseConfigDev = {
-  apiKey: process.env.FIREBASE_DEV_API_KEY,
+const firebaseConfig = {
+  apiKey: process.env.FIREBASE_API_KEY,
   authDomain: "treehoppers-mynt.firebaseapp.com",
   projectId: "treehoppers-mynt",
   storageBucket: "treehoppers-mynt.appspot.com",
   messagingSenderId: "751257459683",
   appId: "1:751257459683:web:10c7f44cd9684098205ed6",
 };
-const firebaseConfigProd = {
-  apiKey: process.env.FIREBASE_PROD_API_KEY,
-  authDomain: "treehoppers-mynt-prod.firebaseapp.com",
-  projectId: "treehoppers-mynt-prod",
-  storageBucket: "treehoppers-mynt-prod.appspot.com",
-  messagingSenderId: "896296035834",
-  appId: "1:896296035834:web:d930407a247bbae63d7043",
-  measurementId: "G-25SHHFJM1K"
-};
-let firebaseConfig;
-if (process.env.NODE_ENV === 'development') {
-  firebaseConfig = firebaseConfigDev
-  console.log("Connected to development DB")
-} else if (process.env.NODE_ENV === 'production') {
-  firebaseConfig = firebaseConfigProd
-  console.log("Connected to production DB")
-}
 
 const firebaseApp = initializeApp(firebaseConfig);
 const db = getFirestore(firebaseApp);
@@ -255,6 +238,7 @@ module.exports = {
       eventTitle: registrationInfo.event_title,
       status: registrationInfo.status,
       registration_time: registrationInfo.registration_time,
+      verification: registrationInfo.verification
     };
     // Doc ID needs to be a string
     const docId = docData.userId + docData.eventTitle;
@@ -266,25 +250,22 @@ module.exports = {
       userId: registrationInfo.user_id.toString(),
       eventTitle: registrationInfo.event_title,
       status: registrationInfo.status,
+      verification: registrationInfo.verification,
       mint_account: registrationInfo.mint_account,
+      redemption_time: registrationInfo.redemption_time
     };
-
-    // Include redemption_time only if it exists
-    if (registrationInfo.redemption_time) {
-      docData.redemption_time = registrationInfo.redemption_time;
-    }
-
-    if (registrationInfo.mint_account) {
-      docData.mint_account = registrationInfo.mint_account;
-    }
 
     const docId = docData.userId + docData.eventTitle;
     const docRef = doc(db, "registrations", docId.toString());
 
-    // Include redemption_time only if it exists
-    const updateData = {
-      status: docData.status,
-    };
+    // Fields that are applicable to be updated are
+    const updateData = {};
+    if(docData.status) {
+      updateData.status = docData.status
+    }
+    if(docData.verification) {
+      updateData.verification = docData.verification
+    }
     if (docData.redemption_time) {
       updateData.redemption_time = docData.redemption_time;
     }
@@ -292,7 +273,11 @@ module.exports = {
       updateData.mint_account = docData.mint_account;
     }
 
+  if (Object.keys(updateData).length > 0) {
     await updateDoc(docRef, updateData);
+  } else {
+    console.log("updateRegistrationFirebase: No fields to update.");
+  }
   },
 
   getNftInfoFirebase: async (eventTitle) => {
@@ -559,4 +544,13 @@ module.exports = {
       return "Minting failed";
     }
   },
+
+  updateVerificationFirebase: async (verificationInfo) => {
+    const { registration_id, updatedVerificationField } = verificationInfo;
+  
+    const docRef = doc(db, "registrations", registration_id); 
+    const updateData = { verification: updatedVerificationField };
+  
+    await updateDoc(docRef, updateData);
+  }  
 };

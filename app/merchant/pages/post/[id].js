@@ -123,6 +123,7 @@ const Content = () => {
                 userData.push({
                   id: res2[i].userId,
                   status: res2[i].status,
+                  verification: res2[i].verification,
                   mint_account: res2[i].mint_account,
                   registration_time: res2[i].registration_time,
                   redemption_time: res2[i].redemption_time,
@@ -142,6 +143,7 @@ const Content = () => {
                   handle: user.handle,
                   number: user.contact,
                   status: user.status,
+                  verification: user.verification,
                   mint_account: user.mint_account ? user.mint_account : "N/A",
                   registration_time: user.registration_time,
                   redemption_time: user.redemption_time,
@@ -259,7 +261,7 @@ const Content = () => {
               <EventStats events={stats} />
             </div>
 
-            <Table data={table} />
+            <Table data={table} event={event} />
           </div>
           {scan ? (
             <>
