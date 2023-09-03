@@ -79,8 +79,8 @@ async def event_options(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("View Ongoing Events", callback_data="view_events"),],
         [InlineKeyboardButton("View Registration Status", callback_data="check_registration"),],
-        [InlineKeyboardButton("View Transaction History",callback_data="view_transaction_history_1"),],
         [InlineKeyboardButton("Redeem Event Ticket", callback_data="redeem"),],
+        [InlineKeyboardButton("View Transaction History",callback_data="view_transaction_history_1"),],
         [InlineKeyboardButton("< Back", callback_data="start"),],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)

@@ -160,7 +160,15 @@ check_balance: Check the users balance against the event price (deprecated)
 def get_current_capacity(event_title):
     registrations = requests.get(endpoint_url + "/getEventRegistrations/" + event_title)
     registration_data = registrations.json()
-    return len(registration_data)
+    num_registered_users = len(registration_data)
+    num_verification_rejected = 0
+
+    for registration in registration_data:
+        if registration['verification'] == 'REJECTED':
+            num_verification_rejected += 1
+
+    num_available = num_registered_users - num_verification_rejected
+    return num_available
 
 def format_event_data(response_data, context: ContextTypes.DEFAULT_TYPE):
     
@@ -454,6 +462,7 @@ async def validate_registration(update: Update, context: ContextTypes.DEFAULT_TY
         
     return ROUTE
 
+
 async def process_registration(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -463,53 +472,36 @@ async def process_registration(update: Update, context: ContextTypes.DEFAULT_TYP
     await complete_purchase(update, context) # await complete_registration(update, context) - called within complete purchase
     return ROUTE
 
-## TODO: Remove/Comment out all wallet/ Mynt-Bank related functionality
 
-## TODO: update logic relating to registration of paid events
-## Send Paynow QR code & UEN to user, and prompt user to click on "yes" once the payment has been confirmed
 async def complete_purchase(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = context.user_data["user_id"]
     event_price = context.user_data["event_price"]
-    event_title = context.user_data["event_title"]
-    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-    data = {
-        'user_id': user_id,
-        'amount': event_price,
-        'transaction_type': "SALE",
-        'timestamp': timestamp,
-        'event_title': event_title,
-    }
-    response = requests.post(endpoint_url + "/ticketSale", json=data)
-    logger.info("Saving payment records")
 
     original_message = context.user_data['original_message'] 
     await original_message.delete()
     
-    if response.status_code == 200:
+    if event_price > 0:
+        keyboard = [[InlineKeyboardButton("< Back to Menu", callback_data="event_options"),],[InlineKeyboardButton("Payment Completed", callback_data="complete_registration"),]]
+
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        with open(f'./paynow/paynow_liam.jpg', 'rb') as f:
+            bio = io.BytesIO(f.read())
+
+        bio.seek(0)
+        context.user_data["registration_confirmation"] = await context.bot.send_photo(
+            chat_id=update.effective_chat.id, 
+            photo=InputFile(
+                bio, 
+                filename='paynow_liam.jpg'
+            ),
+            caption = (f"Please make a payment of ${event_price} via PayNow to the QR code attached.\n\n"
+                        "Alternatively, you can make a transfer to the following UEN: 12345678. \n\n"
+                        "Once the payment has been made, click on 'Payment Completed'"),
+            reply_markup = reply_markup)
         
-        if event_price > 0:
-            keyboard = [[InlineKeyboardButton("< Back to Menu", callback_data="event_options"),],[InlineKeyboardButton("Yes I have paid", callback_data="complete_registration"),]]
-
-            reply_markup = InlineKeyboardMarkup(keyboard)
-
-            with open(f'./paynow/paynow_liam.jpg', 'rb') as f:
-                bio = io.BytesIO(f.read())
-
-            bio.seek(0)
-            context.user_data["registration_confirmation"] = await context.bot.send_photo(
-                chat_id=update.effective_chat.id, 
-                photo=InputFile(bio, filename='paynow_liam.jpg'),caption="Please scan the QR code to pay for the event",
-                reply_markup = reply_markup)
-            
-        else:
-            await complete_registration(update, context)
-
     else:
-        context.user_data["registration_confirmation"] = await context.bot.send_message(
-            text=f"Sorry, something went registering for the event, please press start",
-            chat_id=update.effective_chat.id
-        )
-
+        await complete_registration(update, context)
+    
 
 async def complete_registration(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = context.user_data["user_id"]
@@ -525,6 +517,15 @@ async def complete_registration(update: Update, context: ContextTypes.DEFAULT_TY
     if event_type == 'fcfs':
         status = 'SUCCESSFUL'
         verification = "UNVERIFIED"
+        data = {
+            'user_id': user_id,
+            'amount': event_price,
+            'transaction_type': "SALE",
+            'timestamp': registration_time,
+            'event_title': event_title,
+        }
+        response = requests.post(endpoint_url + "/ticketSale", json=data)
+        logger.info("Saving payment records")
     else:  
         status = 'PENDING'
         verification = "VERIFIED"
@@ -544,14 +545,10 @@ async def complete_registration(update: Update, context: ContextTypes.DEFAULT_TY
             "conducting a raffle to randomly select the winners. \n\n"
             "We will notify you of the outcome via a telegram message. \n\n"
             "Thank you for your interest and we hope to see you at the event!")
-        elif event_type == 'fcfs'and event_price == 0:
-            text=(f"You have successfully registered for {event_title}. \n"
-            "Tickets will be sent to you closer to the event date \n"
-            "Thank you for your interest and we hope to see you at the event!")
         else:
             text=(f"You have successfully registered for {event_title}. \n"
             "Please note that your registration does not guarantee a ticket. \n\n"
-            "We would first need to confirm your payment via paynow. and will notify you of the outcome via a telegram message. \n\n"
+            "Once your payment has been verified, you will receive a ticket and be notified via a telegram message \n\n"
             "Thank you for your interest and we hope to see you at the event!")
         await send_default_event_message(update, context, text)
         return ROUTE
@@ -594,8 +591,8 @@ async def view_transaction_history(update: Update, context: CallbackContext):
 
     response_data = []
 
-    response_data_registraton = requests.get(endpoint_url + f"/getRegistrations/{user_id}")
-    response_registration= response_data_registraton.json()
+    response_data_registration = requests.get(endpoint_url + f"/getRegistrations/{user_id}")
+    response_registration= response_data_registration.json()
     response_data_transaction = requests.get(endpoint_url + f"/viewTransactionHistory/{user_id}")
     response_transaction = response_data_transaction.json()
 
@@ -606,12 +603,10 @@ async def view_transaction_history(update: Update, context: CallbackContext):
       status = event['status']
 
       if status == "SUCCESSFUL" or status == "REDEEMED":
-          print(f"{event_title} was successful")
           for transaction in response_transaction[::-1]: # in the event of duplicate transactions, we want only the latest one, so we reverse the list to push the latest transaction to the top
               event = transaction['eventTitle'] if 'eventTitle' in transaction else "-"
               if event_title == event:
                   amount = transaction['amount']
-                  print(f"{event_title} was {amount}")
                   user_balance += amount
                   response_data.append(transaction)
                   break # break the for loop because we locate the most recent transaction for that event in the case of duplicate tr
