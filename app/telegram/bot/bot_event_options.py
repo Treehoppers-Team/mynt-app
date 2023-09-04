@@ -601,8 +601,12 @@ async def view_transaction_history(update: Update, context: CallbackContext):
     for event in response_registration[::-1]: # we want to push the latest registration to the top
       event_title = event['eventTitle']
       status = event['status']
+      try:  
+        verification = event['verification']
+      except Exception:
+        verification = "UNVERIFIED"
 
-      if status == "SUCCESSFUL" or status == "REDEEMED":
+      if (status == "SUCCESSFUL" or status == "REDEEMED") and verification == 'VERIFIED':
           for transaction in response_transaction[::-1]: # in the event of duplicate transactions, we want only the latest one, so we reverse the list to push the latest transaction to the top
               event = transaction['eventTitle'] if 'eventTitle' in transaction else "-"
               if event_title == event:
