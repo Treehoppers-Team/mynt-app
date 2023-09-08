@@ -92,6 +92,7 @@ const Table: React.FC<TableProps> = ({ data, event }) => {
         const registrationData = {
           user_id: selectedRows[i],
           event_title: event.title,
+          status: "SUCCESSFUL",
           verification: "VERIFIED",
         };
         axios
@@ -119,6 +120,7 @@ const Table: React.FC<TableProps> = ({ data, event }) => {
         const registrationData = {
           user_id: selectedRows[i],
           event_title: event.title,
+          status: "UNSUCCESSFUL",
           verification: "REJECTED",
         };
         axios
