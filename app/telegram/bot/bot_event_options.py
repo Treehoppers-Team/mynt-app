@@ -515,7 +515,7 @@ async def complete_registration(update: Update, context: ContextTypes.DEFAULT_TY
     await registration_confirmation.delete()
 
     if event_type == 'fcfs':
-        status = 'SUCCESSFUL'
+        status = 'PENDING'
         verification = "UNVERIFIED"
         data = {
             'user_id': user_id,
